@@ -174,6 +174,39 @@ class AnkiClient:
             raise AnkiError("AnkiConnect returned no card details.")
         return [card for card in result if isinstance(card, dict)]
 
+    def change_deck(self, card_ids: list[int], deck: str) -> None:
+        if not card_ids:
+            return
+        self._request("changeDeck", cards=card_ids, deck=deck)
+
+    def ensure_notes_in_deck(self, note_ids: list[int], deck: str) -> int:
+        """Move cards belonging to *note_ids* into *deck*; return how many moved.
+
+        Some AnkiConnect builds ignore ``deckName`` when adding notes (observed
+        with an older build on Anki 26.09). ``changeDeck`` is the stable action
+        across those versions, so verify the cards afterwards and repair any
+        strays instead of trusting the add response.
+        """
+        notes = self.notes_info(note_ids)
+        card_ids: list[int] = []
+        for note in notes:
+            for card_id in note.get("cards") or []:
+                try:
+                    card_ids.append(int(card_id))
+                except (TypeError, ValueError):
+                    continue
+        if not card_ids:
+            return 0
+        cards = self.cards_info(card_ids)
+        strays: list[int] = []
+        for card in cards:
+            card_id = card.get("cardId")
+            if card.get("deckName") != deck and isinstance(card_id, int):
+                strays.append(card_id)
+        if strays:
+            self.change_deck(strays, deck)
+        return len(strays)
+
     def find_notes(self, query: str) -> list[int]:
         result = self._request("findNotes", query=query)
         if not isinstance(result, list):
@@ -189,7 +222,7 @@ class AnkiClient:
         return [note for note in result if isinstance(note, dict)]
 
     def answer_cards(self, cards: list[dict[str, int]]) -> list[Any]:
-        result = self._request("answerCards", cards=cards)
+        result = self._request("answerCards", answers=cards)
         if not isinstance(result, list):
             raise AnkiError(
                 "AnkiConnect returned an unexpected answerCards result.",

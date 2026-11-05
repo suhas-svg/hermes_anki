@@ -227,7 +227,16 @@ class AnkiTools:
         client.ensure_deck(deck)
         note_ids = client.add_notes(prepared)
         added_ids = [note_id for note_id in note_ids if isinstance(note_id, int)]
-        return _ok({
+        deck_fixed = 0
+        deck_warning = ""
+        if added_ids:
+            try:
+                deck_fixed = client.ensure_notes_in_deck(added_ids, deck)
+            except AnkiError as exc:
+                # The notes are already in the collection; do not turn a
+                # compatibility probe failure into a failed add.
+                deck_warning = str(exc)
+        result = {
             "success": True,
             "deck": deck,
             "model": model,
@@ -235,7 +244,15 @@ class AnkiTools:
             "added": len(added_ids),
             "duplicates": len(note_ids) - len(added_ids),
             "note_ids": added_ids,
-        })
+        }
+        if deck_fixed:
+            result["deck_fixed"] = deck_fixed
+        if deck_warning:
+            result["warning"] = (
+                "Cards were added, but their deck could not be verified: "
+                f"{deck_warning}"
+            )
+        return _ok(result)
 
     @_guard
     def search(self, args: dict[str, Any]) -> str:

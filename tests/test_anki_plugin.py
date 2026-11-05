@@ -250,6 +250,52 @@ def test_add_cards_does_not_recreate_an_existing_deck(fake_anki):
     assert "createDeck" not in [r["action"] for r in fake_anki.requests]
 
 
+def test_add_cards_moves_cards_into_the_requested_deck(fake_anki):
+    payload = json.loads(_tools(fake_anki).add_cards({
+        "deck": "Spanish",
+        "cards": [{"front": "hola", "back": "hello"}],
+    }))
+
+    assert payload["success"] is True
+    assert payload["deck_fixed"] == 1
+    move = next(r for r in fake_anki.requests if r["action"] == "changeDeck")
+    assert move["params"] == {"cards": [201], "deck": "Spanish"}
+
+
+def test_add_cards_leaves_cards_already_in_the_requested_deck_alone(fake_anki):
+    fake_anki.responses["cardsInfo"] = lambda params: [
+        {**_card(card_id), "deckName": "Spanish"} for card_id in params["cards"]
+    ]
+    payload = json.loads(_tools(fake_anki).add_cards({
+        "deck": "Spanish",
+        "cards": [{"front": "hola", "back": "hello"}],
+    }))
+
+    assert "deck_fixed" not in payload
+    assert "changeDeck" not in [r["action"] for r in fake_anki.requests]
+
+
+def test_add_cards_reports_a_deck_check_failure_without_failing_the_add(fake_anki):
+    fake_anki.errors["cardsInfo"] = "cardsInfo unavailable"
+    payload = json.loads(_tools(fake_anki).add_cards({
+        "deck": "Spanish",
+        "cards": [{"front": "hola", "back": "hello"}],
+    }))
+
+    assert payload["success"] is True
+    assert payload["added"] == 1
+    assert "could not be verified" in payload["warning"]
+
+
+def test_add_cards_skips_the_deck_check_when_every_note_is_a_duplicate(fake_anki):
+    fake_anki.responses["addNotes"] = [None]
+    _tools(fake_anki).add_cards({
+        "deck": "Spanish",
+        "cards": [{"front": "hola", "back": "hello"}],
+    })
+    assert "notesInfo" not in [r["action"] for r in fake_anki.requests]
+
+
 def test_add_cards_rejects_unknown_fields_before_writing(fake_anki):
     payload = json.loads(_tools(fake_anki).add_cards({
         "notes": [{"fields": {"Prompt": "hola"}}],
@@ -299,7 +345,7 @@ def test_answer_maps_good_to_ease_three_and_reports_the_next_interval(fake_anki)
     assert payload["ease_name"] == "good"
     assert payload["next_interval"] == 3
     answer = next(r for r in fake_anki.requests if r["action"] == "answerCards")
-    assert answer["params"]["cards"] == [{"cardId": 1, "ease": 3}]
+    assert answer["params"]["answers"] == [{"cardId": 1, "ease": 3}]
 
 
 def test_answer_rejects_an_unknown_grade_without_calling_anki(fake_anki):
