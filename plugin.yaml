@@ -1,0 +1,43 @@
+name: anki
+version: 1.0.0
+manifest_version: 2
+api_version: 1
+description: "Turn notes into Anki cards, search the collection, and quiz due cards from Hermes. Talks only to a local AnkiConnect endpoint."
+author: suhas-svg
+license: MIT
+homepage: https://github.com/suhas-svg/hermes_anki
+tags: [anki, flashcards, spaced-repetition, study]
+requires_hermes: ">=0.22.5"
+provides_tools:
+  - anki_decks
+  - anki_add_cards
+  - anki_search
+  - anki_due
+  - anki_answer
+provides_hooks: []
+python_dependencies: []
+config_schema:
+  anki_url:
+    type: str
+    default: "http://127.0.0.1:8765"
+    description: "AnkiConnect endpoint. Keep the loopback default unless Anki runs on another machine."
+  default_deck:
+    type: str
+    default: "Default"
+    description: "Deck used when a tool call omits a deck."
+  default_model:
+    type: str
+    default: "Basic"
+    description: "Note model used when a tool call omits a model."
+  request_timeout:
+    type: float
+    default: 10.0
+    description: "Seconds to wait for AnkiConnect."
+  max_cards:
+    type: int
+    default: 50
+    description: "Maximum cards added or returned per call."
+  api_key:
+    type: secret
+    env: ANKI_BRIDGE_API_KEY
+    description: "Optional AnkiConnect API key (only if apiKey is set in AnkiConnect's config)."
