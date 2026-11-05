@@ -454,3 +454,12 @@ def test_cli_status_and_search(fake_anki, capsys):
 
 def test_strip_html_keeps_readable_line_breaks():
     assert PLUGIN.client.strip_html("<b>hola</b><br>mundo") == "hola\nmundo"
+
+
+def test_strip_html_drops_card_style_and_script_blocks():
+    raw = (
+        "<style>.card { font-family: arial; color: black; }</style>"
+        "<div>hablar</div>"
+        "<script>console.log('x')</script>"
+    )
+    assert PLUGIN.client.strip_html(raw) == "hablar"

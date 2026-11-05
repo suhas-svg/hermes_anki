@@ -33,6 +33,11 @@ class AnkiConfig:
 def strip_html(value: Any) -> str:
     """Turn an Anki field (HTML) into readable plain text."""
     text = str(value or "")
+    # Anki's rendered question/answer wraps the card in a <style> block. The
+    # CSS is not part of the card text, so drop whole non-content blocks before
+    # stripping tags.
+    text = re.sub(r"(?is)<(?:style|script)\b[^>]*>.*?</(?:style|script)>", "", text)
+    text = re.sub(r"(?s)<!--.*?-->", "", text)
     text = re.sub(r"(?i)<br\s*/?>", "\n", text)
     text = re.sub(r"(?i)</(?:div|p|li|tr|h[1-6])>", "\n", text)
     text = re.sub(r"<[^>]+>", "", text)
